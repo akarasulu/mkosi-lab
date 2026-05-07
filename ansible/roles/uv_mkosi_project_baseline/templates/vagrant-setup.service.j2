@@ -5,7 +5,7 @@ Before=ssh.service sshd.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/libexec/pe-uki-lab-vagrant-setup
+ExecStart=/usr/local/libexec/{{ project_name }}-vagrant-setup
 RemainAfterExit=yes
 
 [Install]

@@ -25,7 +25,7 @@ Vagrant.configure("2") do |config|
     ].find { |path| File.exist?(path) }
 
     box_name = config.vm.box.gsub(/[^A-Za-z0-9_.-]/, "_")
-    ovmf_vars = "/tmp/pe-uki-lab_#{box_name}_OVMF_VARS_4M.fd"
+    ovmf_vars = "/tmp/mkosi-lab_#{box_name}_OVMF_VARS_4M.fd"
     if ovmf_vars_template && !File.exist?(ovmf_vars)
       FileUtils.cp(ovmf_vars_template, ovmf_vars)
       FileUtils.chmod(0o666, ovmf_vars)
@@ -64,5 +64,11 @@ Vagrant.configure("2") do |config|
       libvirt.loader = ovmf_loader if ovmf_loader
       libvirt.nvram = ovmf_vars if ovmf_loader && File.exist?(ovmf_vars)
     end
+  end
+
+  # Example: use host-installed Ansible to configure the guest after boot.
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = "ansible/playbooks/install-btop.yml"
+    ansible.limit = "all"
   end
 end

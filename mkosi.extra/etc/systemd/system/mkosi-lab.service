@@ -4,7 +4,7 @@ After=basic.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/pe-uki-lab
+ExecStart=/usr/local/bin/mkosi-lab
 StandardOutput=journal+console
 StandardError=journal+console
 RemainAfterExit=yes

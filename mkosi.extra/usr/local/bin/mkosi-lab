@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
 from datetime import datetime, timezone
 
-print("pe-uki-lab boot payload reached")
+print("mkosi-lab boot payload reached")
 print(f"utc={datetime.now(timezone.utc).isoformat()}")

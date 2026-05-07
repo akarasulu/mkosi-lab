@@ -1,0 +1,12 @@
+---
+collections: []
+
+# Add Ansible Galaxy collections here as needed, e.g.:
+# collections:
+#   - name: community.general
+#     version: ">=10.0.0"
+#   - name: ansible.posix
+#     version: ">=1.5.0"
+#
+# Install with:
+#   ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections

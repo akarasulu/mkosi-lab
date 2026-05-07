@@ -1,0 +1,15 @@
+---
+- name: Install btop on UKI lab VM
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install btop
+      ansible.builtin.apt:
+        name: btop
+        state: present

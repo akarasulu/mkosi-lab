@@ -1,12 +1,15 @@
 ---
 project_root: /home/aok/Local/Projects
-project_name: pe-uki-lab
+project_name: mkosi-lab
 project_description: "uv-managed Python project for mkosi UKI experiments"
 python_requires: ">=3.13"
 mkosi_distribution: debian
 mkosi_release: trixie
 mkosi_architecture: x86-64
-mkosi_kernel_command_line: "console=ttyS0 quiet"
+mkosi_mirror: "http://deb.debian.org/debian"
+mkosi_kernel_command_line: "console=ttyS0"
+mkosi_root_password: "lab"
+mkosi_root_shell: "/bin/bash"
 install_host_packages: true
 install_uv: true
 create_project: true
@@ -35,4 +38,24 @@ image_packages:
   - python3
   - kmod
   - dbus
+  - login
+  - apt
+  - iproute2
+  - iputils-ping
+  - net-tools
+  - bind9-dnsutils
+  - traceroute
+  - tcpdump
+  - ethtool
+  - curl
+  - ca-certificates
+  - openssh-server
+  - systemd-resolved
+  - sudo
   - systemd-boot-efi
+# Vagrant user configuration
+vagrant_uid: "1000"
+vagrant_gecos: "Vagrant SSH user"
+vagrant_shell: "/bin/bash"
+vagrant_ssh_public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTkyrtvp9eWW6A8YVr+kz4TjGYe7gHzIw+niNltGEFHzD8+v1I2YJ6oXevct1YeS0o9HZyN1Q9qgCgzUFtdOKLv6IedplqoPkcmF0aYet2PkEDo3MlTBckFXPITAMzF8dJSIFo9D8HfdOV0IAdx4O7PtixWKn5y2hMNG0zQPyUecp4pzC6kivAIhyfHilFR61RGL+GPXQ2MWZWFYbAGjyiYJnAmCP3NOTd0jMZEnDkbUvxhMmBYSdETk1rRgm+R4LOzFUGaHqHDLKLX+FIPKcF96hrucXzcWyLbIbEgE98OHlnVYCzRdK8jlqm8tehUc9c9WhQ== vagrant insecure public key"
+vagrant_password_hash: "$6$FOHjpDYeL3FpPjEm$yxnDREdGzpcpT7BjGF8YPfni5wcl.Ttsyh/kwZNuduB9iNzHBfpRnaAqVo59/OKtLTzViu4ul86jRjccGnxFj/"

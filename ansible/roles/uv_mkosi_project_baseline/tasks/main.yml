@@ -62,7 +62,15 @@
     mode: "0755"
   loop:
     - mkosi.extra/usr/local/bin
+    - mkosi.extra/usr/local/libexec
+    - mkosi.extra/usr/lib/sysusers.d
     - mkosi.extra/etc/systemd/system/default.target.wants
+    - mkosi.extra/etc/systemd/system/multi-user.target.wants
+    - mkosi.extra/etc/systemd/system/network-online.target.wants
+    - mkosi.extra/etc/systemd/system/sysinit.target.wants
+    - mkosi.extra/etc/systemd/network
+    - mkosi.extra/etc/sudoers.d
+    - mkosi.extra/home/vagrant/.ssh
 
 - name: Write boot payload
   ansible.builtin.template:
@@ -80,4 +88,71 @@
   ansible.builtin.file:
     src: "../{{ project_name }}.service"
     dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/etc/systemd/system/default.target.wants/{{ project_name }}.service"
+    state: link
+
+- name: Write DHCP network configuration
+  ansible.builtin.template:
+    src: 20-dhcp.network.j2
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/etc/systemd/network/20-dhcp.network"
+    mode: "0644"
+
+- name: Write vagrant sysusers configuration
+  ansible.builtin.template:
+    src: sysusers-vagrant.conf.j2
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/usr/lib/sysusers.d/{{ project_name }}.conf"
+    mode: "0644"
+
+- name: Write vagrant sudoers configuration
+  ansible.builtin.template:
+    src: sudoers-vagrant.j2
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/etc/sudoers.d/vagrant"
+    mode: "0440"
+
+- name: Write vagrant authorized_keys
+  ansible.builtin.copy:
+    content: "{{ vagrant_ssh_public_key }}\n"
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/home/vagrant/.ssh/authorized_keys"
+    mode: "0600"
+
+- name: Write vagrant-setup service
+  ansible.builtin.template:
+    src: vagrant-setup.service.j2
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/etc/systemd/system/{{ project_name }}-vagrant-setup.service"
+    mode: "0644"
+
+- name: Write vagrant-setup script
+  ansible.builtin.template:
+    src: vagrant-setup.j2
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/usr/local/libexec/{{ project_name }}-vagrant-setup"
+    mode: "0755"
+
+- name: Mask ssh.socket in image overlay
+  ansible.builtin.file:
+    src: /dev/null
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/etc/systemd/system/ssh.socket"
+    state: link
+
+- name: Enable systemd units in multi-user.target
+  ansible.builtin.file:
+    src: "{{ item.src }}"
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/etc/systemd/system/multi-user.target.wants/{{ item.name }}"
+    state: link
+  loop:
+    - name: "{{ project_name }}-vagrant-setup.service"
+      src: "../{{ project_name }}-vagrant-setup.service"
+    - name: ssh.service
+      src: "../../../../usr/lib/systemd/system/ssh.service"
+    - name: systemd-networkd.service
+      src: "../../../../usr/lib/systemd/system/systemd-networkd.service"
+
+- name: Enable systemd-networkd-wait-online in network-online.target
+  ansible.builtin.file:
+    src: "../../../../usr/lib/systemd/system/systemd-networkd-wait-online.service"
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service"
+    state: link
+
+- name: Enable systemd-resolved in sysinit.target
+  ansible.builtin.file:
+    src: "../../../../usr/lib/systemd/system/systemd-resolved.service"
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/etc/systemd/system/sysinit.target.wants/systemd-resolved.service"
     state: link

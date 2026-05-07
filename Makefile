@@ -1,23 +1,24 @@
 SHELL := /bin/bash
 
 LIBVIRT_URI ?= qemu:///system
-DOMAIN ?= pe-uki-lab_default
+DOMAIN ?= mkosi-lab_default
 
 BOX_NAME ?= nested/uki-boot
 BOX_VERSION ?= 0.1.0
 BOX_PROVIDER ?= libvirt
+BOX_NAME_LIBVIRT ?= $(subst /,-VAGRANTSLASH-,$(BOX_NAME))
 BOX_BUILD_DIR ?= .vagrant/uki-box
 BOX_FILE ?= $(BOX_BUILD_DIR)/nested-uki-boot.box
 BOX_CATALOG ?= $(BOX_BUILD_DIR)/metadata-catalog.json
 BOX_DISK ?= $(BOX_BUILD_DIR)/box.img
 
-UKI ?= mkosi.output/pe-uki-lab.efi
-ESP_IMAGE ?= $(BOX_BUILD_DIR)/pe-uki-lab-esp.raw
+UKI ?= mkosi.output/mkosi-lab.efi
+ESP_IMAGE ?= $(BOX_BUILD_DIR)/mkosi-lab-esp.raw
 ESP_SIZE ?= 384M
 ESP_LABEL ?= LABUKIESP
 ESP_BOOT_FILE ?= ::/EFI/BOOT/BOOTX64.EFI
 
-.PHONY: build run mkosi-build esp prepare-esp box register-box remove-box-volume check-domain-stopped up down destroy ssh console status clean
+.PHONY: build run mkosi-build esp prepare-esp box register-box remove-orphan-domain remove-box-volume remove-stale-libvirt check-domain-stopped up down destroy ssh console status clean inventory ping
 
 build: destroy mkosi-build esp box register-box
 
@@ -57,13 +58,29 @@ box: esp
 		'{"name":"$(BOX_NAME)","versions":[{"version":"$(BOX_VERSION)","providers":[{"name":"$(BOX_PROVIDER)","url":"'"$$box_url"'"}]}]}' \
 		> "$(BOX_CATALOG)"
 
-register-box: box remove-box-volume
+register-box: box remove-stale-libvirt
 	vagrant box remove "$(BOX_NAME)" --provider "$(BOX_PROVIDER)" --all --force 2>/dev/null || true
 	vagrant box add --force "$(BOX_CATALOG)"
 
+remove-stale-libvirt: remove-orphan-domain remove-box-volume
+
+remove-orphan-domain:
+	@state="$$(virsh -c "$(LIBVIRT_URI)" domstate "$(DOMAIN)" 2>/dev/null || true)"; \
+	if [ -n "$$state" ]; then \
+		echo "Removing stale libvirt domain $(DOMAIN) ($$state)"; \
+		virsh -c "$(LIBVIRT_URI)" destroy "$(DOMAIN)" >/dev/null 2>&1 || true; \
+		virsh -c "$(LIBVIRT_URI)" undefine "$(DOMAIN)" --nvram >/dev/null 2>&1 || \
+			virsh -c "$(LIBVIRT_URI)" undefine "$(DOMAIN)" >/dev/null 2>&1 || true; \
+	fi
+	@volume="$(DOMAIN).img"; \
+	if virsh -c "$(LIBVIRT_URI)" vol-info "$$volume" --pool default >/dev/null 2>&1; then \
+		echo "Removing stale libvirt volume $$volume"; \
+		virsh -c "$(LIBVIRT_URI)" vol-delete "$$volume" --pool default >/dev/null; \
+	fi
+
 remove-box-volume:
 	@virsh -c "$(LIBVIRT_URI)" vol-list default --name 2>/dev/null | \
-		awk '/^nested-VAGRANTSLASH-uki-boot_vagrant_box_image_/ { print }' | \
+		awk '/^$(BOX_NAME_LIBVIRT)_vagrant_box_image_/ { print }' | \
 		while read -r volume; do \
 			echo "Removing stale libvirt box volume $$volume"; \
 			virsh -c "$(LIBVIRT_URI)" vol-delete "$$volume" --pool default >/dev/null; \
@@ -88,15 +105,20 @@ down:
 	fi
 
 destroy:
-	@state="$$(virsh -c "$(LIBVIRT_URI)" domstate "$(DOMAIN)" 2>/dev/null || true)"; \
-	if [ -n "$$state" ]; then \
-		vagrant destroy -f; \
-	else \
-		echo "$(DOMAIN) is not created; nothing to destroy."; \
-	fi
+	vagrant destroy -f 2>/dev/null || true
+	@$(MAKE) --no-print-directory remove-orphan-domain
 
 ssh:
 	vagrant ssh
+
+inventory:
+	@mkdir -p .vagrant
+	vagrant ssh-config | sed 's/^Host .*/Host mkosi-lab/' > .vagrant/ssh-config
+	@echo "SSH config written to .vagrant/ssh-config"
+	@echo "Run 'make ping' to verify ansible connectivity."
+
+ping:
+	ansible uki_lab -m ansible.builtin.ping
 
 console:
 	virsh -c $(LIBVIRT_URI) console $(DOMAIN)

@@ -2,6 +2,7 @@
 Distribution={{ mkosi_distribution }}
 Release={{ mkosi_release }}
 Architecture={{ mkosi_architecture }}
+Mirror={{ mkosi_mirror }}
 
 [Output]
 Format=uki
@@ -14,4 +15,6 @@ CacheDirectory=mkosi.cache
 [Content]
 Packages={% for package in image_packages %}{% if loop.first %}{{ package }}{% else %}
          {{ package }}{% endif %}{% endfor %}
+RootPassword={{ mkosi_root_password }}
+RootShell={{ mkosi_root_shell }}
 KernelCommandLine={{ mkosi_kernel_command_line }}
