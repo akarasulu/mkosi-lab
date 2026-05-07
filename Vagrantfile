@@ -1,7 +1,8 @@
 require "fileutils"
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "ncrmro/debian-bookworm64-uefi"
+  config.vm.box = "nested/uki-boot"
+  config.vm.box_check_update = false
 
   config.vm.synced_folder ".", "/vagrant", disabled: true
   config.ssh.username = "vagrant"
@@ -38,10 +39,13 @@ Vagrant.configure("2") do |config|
 
     libvirt.cpus = 2
     libvirt.memory = 2048
-    # The ncrmro/debian-bookworm64-uefi box configures DHCP for enp5s0.
-    # Pin the management NIC there so Vagrant/libvirt can obtain a lease.
+    # Keep the management NIC stable. The UKI uses a broad systemd-networkd
+    # DHCP match, but stable PCI topology makes debugging less surprising.
     libvirt.management_network_pci_bus = "0x05"
     libvirt.management_network_pci_slot = "0x00"
+    libvirt.disk_device = "vda"
+    libvirt.disk_bus = "virtio"
+    libvirt.boot "hd"
 
     if wsl
       # WSL2 often lacks /dev/kvm inside the distro. In that environment,
@@ -52,14 +56,6 @@ Vagrant.configure("2") do |config|
       libvirt.machine_type = "q35"
       libvirt.loader = ovmf_loader if ovmf_loader
       libvirt.nvram = ovmf_vars if ovmf_loader && File.exist?(ovmf_vars)
-      libvirt.storage :file,
-                      type: "raw",
-                      size: "1G",
-                      path: "pe-uki-lab-esp.img",
-                      bus: "sata",
-                      device: "sda",
-                      allow_existing: true
-      libvirt.boot "hd"
     else
       libvirt.cpu_mode = "host-passthrough"
       libvirt.nested = true

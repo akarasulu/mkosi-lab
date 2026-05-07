@@ -20,7 +20,7 @@ make build
 
 The mkosi config builds a Debian trixie `Format=uki` image and overlays `mkosi.extra/` into the image. The included systemd service runs `/usr/local/bin/pe-uki-lab` during boot and writes to the console/journal.
 
-Generated artifacts go under `mkosi.output/`; cache data goes under `mkosi.cache/`. The `make build` target also formats the Lab UKI ESP image at `/var/lib/libvirt/images/pe-uki-lab-esp.img` and copies the UKI to `EFI/BOOT/BOOTX64.EFI`.
+Generated artifacts go under `mkosi.output/`; cache data goes under `mkosi.cache/`. The `make build` target also creates a tiny FAT Lab UKI ESP, copies the UKI to `EFI/BOOT/BOOTX64.EFI`, packages that disk as a local libvirt Vagrant box, and registers it as `nested/uki-boot`.
 
 ## Boot-test the UKI with Vagrant (UEFI/libvirt)
 
@@ -31,7 +31,7 @@ sudo apt-get install -y qemu-system-x86 ovmf mtools dosfstools
 vagrant plugin install vagrant-libvirt
 ```
 
-Build the UKI, then start the VM:
+Build and register the UKI boot box, then start the VM:
 
 ```bash
 cd /home/aok/Local/Projects/pe-uki-lab
@@ -39,7 +39,13 @@ make build
 make up
 ```
 
-The `Vagrantfile` attaches `/var/lib/libvirt/images/pe-uki-lab-esp.img` as the Lab UKI ESP. That FAT image contains `mkosi.output/pe-uki-lab.efi` at the UEFI fallback path `EFI/BOOT/BOOTX64.EFI`.
+The `Vagrantfile` uses `nested/uki-boot` as the base box. That box contains a single qcow2 disk whose filesystem is the FAT Lab UKI ESP:
+
+```text
+vda:/EFI/BOOT/BOOTX64.EFI
+```
+
+The VM no longer depends on an external Debian base box or a second attached ESP disk.
 
 Useful shortcuts:
 

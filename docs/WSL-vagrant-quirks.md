@@ -10,14 +10,31 @@ This note records the failure chain behind the first working Vagrant/libvirt boo
 The working setup depends on three explicit choices in the `Vagrantfile`:
 
 - Use q35 plus OVMF firmware for UEFI boot.
-- In WSL, use qemu mode and attach the Lab UKI ESP image explicitly as a disk.
-- Pin the libvirt management NIC to PCI bus `0x05`, slot `0x00`, because the selected Debian box configures DHCP on `enp5s0`.
+- In WSL, use qemu mode and a writable OVMF vars image.
+- Package the Lab UKI ESP as the local `nested/uki-boot` libvirt Vagrant box, so the UKI disk is the primary boot disk.
+- Pin the libvirt management NIC to PCI bus `0x05`, slot `0x00`, so the PCI topology stays stable while debugging.
 
 The default Vagrant synced folder is also disabled because rsyncing the whole project copies `mkosi.output/`, `.venv/`, and other generated artifacts into the guest.
 
 ## ESP Naming
 
-There are two different EFI System Partitions in this lab. Always name them explicitly:
+The current `box-it-up` branch packages the Lab UKI ESP as the only disk in the local `nested/uki-boot` Vagrant box:
+
+```text
+vda:/EFI/BOOT/BOOTX64.EFI
+```
+
+The generated box contains:
+
+```text
+metadata.json
+Vagrantfile
+box.img
+```
+
+`box.img` is a qcow2 container whose filesystem is the FAT Lab UKI ESP. Vagrant/libvirt copies that box disk into the libvirt storage pool as `/var/lib/libvirt/images/pe-uki-lab_default.img`, and the guest sees it as `vda`.
+
+Older experiments had two different EFI System Partitions:
 
 - **Base box ESP**: `vda1`
   This is part of the Vagrant base box disk, `/var/lib/libvirt/images/pe-uki-lab_default.img`. It belongs to the Debian box image and is not the artifact under test.
@@ -25,50 +42,35 @@ There are two different EFI System Partitions in this lab. Always name them expl
 - **Lab UKI ESP**: `sda1`
   This is the attached raw ESP disk image, `/var/lib/libvirt/images/pe-uki-lab-esp.img`. It is the artifact under test and should contain the mkosi-generated UKI at `EFI/BOOT/BOOTX64.EFI`.
 
-For a direct UEFI fallback boot test, the Lab UKI ESP should contain the UKI as a real FAT file:
+That two-disk model worked, but it left a confusing unused base image in the VM. The boxed model removes that ambiguity: there is no external Debian base box in the running domain.
+
+For a direct UEFI fallback boot test, the Lab UKI ESP contains the UKI as a real FAT file:
 
 ```text
-sda1:/EFI/BOOT/BOOTX64.EFI
+vda:/EFI/BOOT/BOOTX64.EFI
 ```
 
 FAT does not support Unix symlinks, and UEFI fallback boot expects a real file at `\EFI\BOOT\BOOTX64.EFI`. To avoid storing the same UKI twice, store it only at that fallback path.
 
-The ideal boot order is:
-
-1. **Lab UKI ESP disk**: `sda`
-2. **Base box disk**: `vda`
-
-In libvirt XML, that means:
+The current boxed model has a single boot disk. In libvirt XML, the useful evidence is:
 
 ```xml
-<target dev='sda' bus='sata'/>
-<boot order='1'/>
-
-<target dev='vda' bus='virtio'/>
-<boot order='2'/>
-```
-
-In practice, vagrant-libvirt 0.12.2 only exposes a coarse `libvirt.boot "hd"` setting. Its boot-order action groups all hard disks together in generated XML order, which places the Base box disk `vda` before the Lab UKI ESP disk `sda`:
-
-```xml
+<source file='/var/lib/libvirt/images/pe-uki-lab_default.img'/>
 <target dev='vda' bus='virtio'/>
 <boot order='1'/>
-
-<target dev='sda' bus='sata'/>
-<boot order='2'/>
 ```
 
-That XML does not by itself prove the Base box booted. Runtime proof matters more. The current UKI boot can be verified by checking that the guest reports the mkosi kernel command line, Debian trixie userspace, and the Lab UKI ESP as `sda`:
+Runtime proof still matters. The current UKI boot can be verified by checking that the guest reports the mkosi kernel command line, Debian trixie userspace, and the Lab UKI ESP as `vda`:
 
 ```bash
 vagrant ssh -c "cat /proc/cmdline; cat /etc/os-release; lsblk -f"
 ```
 
-Expected evidence:
+Expected evidence in the boxed model:
 
-- `/proc/cmdline` contains `console=ttyS0 quiet`.
+- `/proc/cmdline` contains `console=ttyS0`.
 - `/etc/os-release` reports Debian 13/trixie from the mkosi UKI userspace.
-- `lsblk -f` shows `sda` as `vfat` with label `LABUKIESP`; the Base box ESP remains `vda1`.
+- `lsblk -f` shows only `vda` as `vfat` with label `LABUKIESP`.
 
 ## WSL Host Constraints
 
@@ -88,7 +90,7 @@ The vagrant-libvirt provider can create and start UEFI guests, but it does not r
 - `machine_type = "q35"` is required for the intended PCI/UEFI topology.
 - `loader` must point at an OVMF code image.
 - `nvram` must point at a writable OVMF vars image.
-- The generated ESP image must be attached as a disk the guest firmware can see.
+- The generated ESP image must be present as the primary box disk the guest firmware can see.
 - Boot order must prefer the disk path that contains the expected UEFI boot entry.
 
 Without those pieces, failures can look like generic firmware boot hangs or a VM that starts but never reaches the expected OS path.
@@ -337,12 +339,12 @@ This makes startup deterministic: create `vagrant`, repair `/home/vagrant` owner
 
 `insert_key = false` is intentional. The UKI initrd is rebuilt frequently, so rotating the insecure key into the running guest would only last until the next rebuild/reboot.
 
-This SSH compatibility does not by itself choose the boot disk. The boot-source distinction still matters:
+This SSH compatibility does not by itself choose the boot disk. The boot-source distinction still matters, but the boxed model makes it simpler:
 
-- `vda` / `vda1` is the Base box disk and Base box ESP.
-- `sda` / `sda1` is the Lab UKI ESP disk and Lab UKI ESP.
+- `vda` is the only disk in the running domain.
+- `vda` is the Lab UKI ESP packaged into the `nested/uki-boot` box.
 
-For a true UKI test, the domain must still boot `sda` before `vda`.
+For a true UKI test, the domain should show `vda` with boot order 1 and `lsblk -f` should show `vda` as `vfat` with label `LABUKIESP`.
 
 ## Debugging Checklist
 
