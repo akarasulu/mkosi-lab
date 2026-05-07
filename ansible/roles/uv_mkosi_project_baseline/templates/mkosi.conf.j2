@@ -1,0 +1,17 @@
+[Distribution]
+Distribution={{ mkosi_distribution }}
+Release={{ mkosi_release }}
+Architecture={{ mkosi_architecture }}
+
+[Output]
+Format=uki
+Output={{ project_name }}
+OutputDirectory=mkosi.output
+
+[Build]
+CacheDirectory=mkosi.cache
+
+[Content]
+Packages={% for package in image_packages %}{% if loop.first %}{{ package }}{% else %}
+         {{ package }}{% endif %}{% endfor %}
+KernelCommandLine={{ mkosi_kernel_command_line }}

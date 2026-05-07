@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: uv_mkosi_project_baseline
+  author: aok
+  description: Create a uv Python project baseline for mkosi UKI experiments.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+dependencies: []

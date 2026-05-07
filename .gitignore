@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# mkosi-generated artifacts and caches
+mkosi.output/
+mkosi.cache/
+
+# Tool caches
+.ruff_cache/
+.vagrant
+.venv
+.agents
+.codex
+.ruff_cache
+.vagrant

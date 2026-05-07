@@ -1,0 +1,83 @@
+---
+- name: Install host packages for uv and mkosi development
+  ansible.builtin.apt:
+    name: "{{ host_packages }}"
+    state: present
+    update_cache: true
+  become: true
+  when: install_host_packages | bool
+
+- name: Check whether uv is installed
+  ansible.builtin.command: bash -lc 'source ~/.local/bin/env 2>/dev/null || true; command -v uv'
+  register: uv_check
+  changed_when: false
+  failed_when: false
+  when: install_uv | bool
+
+- name: Install uv with the official installer
+  ansible.builtin.shell: curl -LsSf https://astral.sh/uv/install.sh | sh
+  args:
+    executable: /bin/bash
+  when:
+    - install_uv | bool
+    - uv_check.rc != 0
+
+- name: Ensure project root exists
+  ansible.builtin.file:
+    path: "{{ project_root }}"
+    state: directory
+    mode: "0755"
+
+- name: Check whether pyproject.toml exists
+  ansible.builtin.stat:
+    path: "{{ project_root }}/{{ project_name }}/pyproject.toml"
+  register: pyproject_stat
+
+- name: Create packaged uv project
+  ansible.builtin.command: bash -lc 'source ~/.local/bin/env; uv init --package {{ project_name | quote }}'
+  args:
+    chdir: "{{ project_root }}"
+  when:
+    - create_project | bool
+    - not pyproject_stat.stat.exists
+
+- name: Add uv dev dependencies
+  ansible.builtin.command: bash -lc 'source ~/.local/bin/env; uv add --dev {{ dev_dependencies | map("quote") | join(" ") }}'
+  args:
+    chdir: "{{ project_root }}/{{ project_name }}"
+  when:
+    - add_dev_dependencies | bool
+    - dev_dependencies | length > 0
+
+- name: Write mkosi configuration
+  ansible.builtin.template:
+    src: mkosi.conf.j2
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.conf"
+    mode: "0644"
+
+- name: Ensure mkosi overlay directories exist
+  ansible.builtin.file:
+    path: "{{ project_root }}/{{ project_name }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - mkosi.extra/usr/local/bin
+    - mkosi.extra/etc/systemd/system/default.target.wants
+
+- name: Write boot payload
+  ansible.builtin.template:
+    src: boot-payload.py.j2
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/usr/local/bin/{{ project_name }}"
+    mode: "0755"
+
+- name: Write boot payload service
+  ansible.builtin.template:
+    src: boot-payload.service.j2
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/etc/systemd/system/{{ project_name }}.service"
+    mode: "0644"
+
+- name: Enable boot payload service in image overlay
+  ansible.builtin.file:
+    src: "../{{ project_name }}.service"
+    dest: "{{ project_root }}/{{ project_name }}/mkosi.extra/etc/systemd/system/default.target.wants/{{ project_name }}.service"
+    state: link

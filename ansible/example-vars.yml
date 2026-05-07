@@ -1,0 +1,5 @@
+---
+project_root: /home/aok/Local/Projects
+project_name: another-uki-lab
+project_description: "Another uv and mkosi UKI experiment"
+mkosi_release: trixie

@@ -1,0 +1,13 @@
+[Unit]
+Description=PE UKI lab Python payload
+After=basic.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/pe-uki-lab
+StandardOutput=journal+console
+StandardError=journal+console
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target

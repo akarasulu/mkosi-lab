@@ -1,0 +1,7 @@
+---
+- name: Create a uv + mkosi UKI project baseline
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  roles:
+    - role: uv_mkosi_project_baseline

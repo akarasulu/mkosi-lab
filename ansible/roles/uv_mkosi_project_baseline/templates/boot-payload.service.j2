@@ -1,0 +1,13 @@
+[Unit]
+Description={{ project_name }} Python boot payload
+After=basic.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/{{ project_name }}
+StandardOutput=journal+console
+StandardError=journal+console
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
