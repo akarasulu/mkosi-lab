@@ -18,7 +18,7 @@ ESP_SIZE ?= 384M
 ESP_LABEL ?= LABUKIESP
 ESP_BOOT_FILE ?= ::/EFI/BOOT/BOOTX64.EFI
 
-.PHONY: build run mkosi-build esp prepare-esp box register-box remove-orphan-domain remove-box-volume remove-stale-libvirt check-domain-stopped up down destroy ssh console status clean inventory ping
+.PHONY: build run mkosi-build esp prepare-esp box register-box remove-orphan-domain remove-box-volume remove-stale-libvirt check-domain-stopped up down destroy ssh console status clean distclean inventory ping
 
 build: destroy mkosi-build esp box register-box
 
@@ -128,4 +128,13 @@ status:
 	virsh -c $(LIBVIRT_URI) domblklist $(DOMAIN) || true
 
 clean:
-	sudo mkosi clean
+	vagrant destroy -f 2>/dev/null || true
+	@$(MAKE) --no-print-directory remove-orphan-domain
+	@$(MAKE) --no-print-directory remove-box-volume
+	vagrant box remove "$(BOX_NAME)" --provider "$(BOX_PROVIDER)" --all --force 2>/dev/null || true
+	rm -rf .vagrant
+	sudo mkosi -o mkosi.output clean
+
+distclean: clean
+	sudo rm -rf mkosi.cache
+	rm -rf .ruff_cache
