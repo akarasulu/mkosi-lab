@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+usermod --password '$6$FOHjpDYeL3FpPjEm$yxnDREdGzpcpT7BjGF8YPfni5wcl.Ttsyh/kwZNuduB9iNzHBfpRnaAqVo59/OKtLTzViu4ul86jRjccGnxFj/' vagrant
+chown -R vagrant:vagrant /home/vagrant
+chmod 700 /home/vagrant/.ssh
+chmod 600 /home/vagrant/.ssh/authorized_keys

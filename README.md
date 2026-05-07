@@ -15,12 +15,12 @@ uv run pytest
 
 ```bash
 cd /home/aok/Local/Projects/pe-uki-lab
-sudo mkosi -f build
+make build
 ```
 
 The mkosi config builds a Debian trixie `Format=uki` image and overlays `mkosi.extra/` into the image. The included systemd service runs `/usr/local/bin/pe-uki-lab` during boot and writes to the console/journal.
 
-Generated artifacts go under `mkosi.output/`; cache data goes under `mkosi.cache/`.
+Generated artifacts go under `mkosi.output/`; cache data goes under `mkosi.cache/`. The `make build` target also formats the Lab UKI ESP image at `/var/lib/libvirt/images/pe-uki-lab-esp.img` and copies the UKI to `EFI/BOOT/BOOTX64.EFI`.
 
 ## Boot-test the UKI with Vagrant (UEFI/libvirt)
 
@@ -35,16 +35,26 @@ Build the UKI, then start the VM:
 
 ```bash
 cd /home/aok/Local/Projects/pe-uki-lab
-sudo mkosi -f build
-vagrant up --provider=libvirt
+make build
+make up
 ```
 
-The `Vagrantfile` creates a tiny FAT EFI System Partition image under `.vagrant/uki/`, copies `mkosi.output/pe-uki-lab.efi` to `EFI/BOOT/BOOTX64.EFI`, and boots a UEFI guest from it.
+The `Vagrantfile` attaches `/var/lib/libvirt/images/pe-uki-lab-esp.img` as the Lab UKI ESP. That FAT image contains `mkosi.output/pe-uki-lab.efi` at the UEFI fallback path `EFI/BOOT/BOOTX64.EFI`.
+
+Useful shortcuts:
+
+```bash
+make status
+make ssh
+make console
+make down
+make destroy
+```
 
 To stop/remove the VM:
 
 ```bash
-vagrant destroy -f
+make destroy
 ```
 
 ## Open from Windows VS Code
@@ -65,6 +75,7 @@ code .
 ## Project notes
 
 - `docs/session-log.md` records the setup session and build lessons.
+- `docs/WSL-vagrant-quirks.md` documents the WSL/Vagrant/libvirt UEFI and networking failure chain.
 - `docs/project-history.md` tracks the project baseline over time.
 - `docs/recreate-project.md` explains how to recreate this project manually.
 - `docs/ansible-baseline-role.md` explains the reusable Ansible role for stamping out similar projects.

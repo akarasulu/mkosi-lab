@@ -1,0 +1,12 @@
+[Unit]
+Description=Prepare Vagrant SSH user for UKI lab
+After=systemd-sysusers.service
+Before=ssh.service sshd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/pe-uki-lab-vagrant-setup
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
