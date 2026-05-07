@@ -1,12 +1,12 @@
-# pe-uki-lab
+# mkosi Lab
 
 A small uv-managed Python project for experimenting with mkosi-built Unified Kernel Images.
 
 ## Daily development
 
 ```bash
-cd /home/aok/Local/Projects/pe-uki-lab
-uv run pe-uki-lab
+cd /home/aok/Local/Projects/mkosi-lab
+uv run mkosi-lab
 uv run ruff check .
 uv run pytest
 ```
@@ -14,11 +14,11 @@ uv run pytest
 ## Build the first UKI experiment
 
 ```bash
-cd /home/aok/Local/Projects/pe-uki-lab
+cd /home/aok/Local/Projects/mkosi-lab
 make build
 ```
 
-The mkosi config builds a Debian trixie `Format=uki` image and overlays `mkosi.extra/` into the image. The included systemd service runs `/usr/local/bin/pe-uki-lab` during boot and writes to the console/journal.
+The mkosi config builds a Debian trixie `Format=uki` image and overlays `mkosi.extra/` into the image. The included systemd service runs `/usr/local/bin/mkosi-lab` during boot and writes to the console/journal.
 
 Generated artifacts go under `mkosi.output/`; cache data goes under `mkosi.cache/`. The `make build` target also creates a tiny FAT Lab UKI ESP, copies the UKI to `EFI/BOOT/BOOTX64.EFI`, packages that disk as a local libvirt Vagrant box, and registers it as `nested/uki-boot`.
 
@@ -34,7 +34,7 @@ vagrant plugin install vagrant-libvirt
 Build and register the UKI boot box, then start the VM:
 
 ```bash
-cd /home/aok/Local/Projects/pe-uki-lab
+cd /home/aok/Local/Projects/mkosi-lab
 make build
 make up
 ```
@@ -68,13 +68,13 @@ make destroy
 From PowerShell:
 
 ```powershell
-code --remote wsl+Debian /home/aok/Local/Projects/pe-uki-lab
+code --remote wsl+Debian /home/aok/Local/Projects/mkosi-lab
 ```
 
 Or from Debian WSL:
 
 ```bash
-cd /home/aok/Local/Projects/pe-uki-lab
+cd /home/aok/Local/Projects/mkosi-lab
 code .
 ```
 
@@ -89,7 +89,7 @@ code .
 ## Create another project from the baseline role
 
 ```bash
-cd /home/aok/Local/Projects/pe-uki-lab
+cd /home/aok/Local/Projects/mkosi-lab
 ansible-playbook ansible/create-uv-mkosi-project.yml \
   -e project_name=another-uki-lab
 ```
