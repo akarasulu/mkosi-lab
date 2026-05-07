@@ -1,4 +1,4 @@
-# pe-uki-lab
+# mkosi Lab
 
 A small uv-managed Python project for experimenting with mkosi-built Unified Kernel Images.
 
