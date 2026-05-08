@@ -66,6 +66,11 @@ Vagrant.configure("2") do |config|
     end
   end
 
+  config.vm.network "private_network",
+    type:                    "dhcp",
+    libvirt__network_name:   "mkosi-lab",
+    libvirt__always_destroy: false
+
   # Example: use host-installed Ansible to configure the guest after boot.
   config.vm.provision "ansible" do |ansible|
     ansible.playbook = "ansible/playbooks/install-btop.yml"

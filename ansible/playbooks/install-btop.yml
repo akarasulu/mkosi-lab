@@ -4,12 +4,10 @@
   become: true
 
   tasks:
-    - name: Update apt cache
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-
-    - name: Install btop
-      ansible.builtin.apt:
-        name: btop
-        state: present
+    - name: Update apt cache and install btop
+      ansible.builtin.shell: |
+        set -euo pipefail
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y btop
+      args:
+        executable: /bin/bash

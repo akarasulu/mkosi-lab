@@ -4,13 +4,14 @@ LIBVIRT_URI ?= qemu:///system
 DOMAIN ?= mkosi-lab_default
 
 BOX_NAME ?= nested/uki-boot
-BOX_VERSION ?= 0.1.0
+BOX_VERSION ?= $(shell date +%Y%m%d%H%M%S)
 BOX_PROVIDER ?= libvirt
 BOX_NAME_LIBVIRT ?= $(subst /,-VAGRANTSLASH-,$(BOX_NAME))
 BOX_BUILD_DIR ?= .vagrant/uki-box
 BOX_FILE ?= $(BOX_BUILD_DIR)/nested-uki-boot.box
 BOX_CATALOG ?= $(BOX_BUILD_DIR)/metadata-catalog.json
 BOX_DISK ?= $(BOX_BUILD_DIR)/box.img
+TMP_BUILD_DIR ?= .vagrant/tmp
 
 UKI ?= mkosi.output/mkosi-lab.efi
 ESP_IMAGE ?= $(BOX_BUILD_DIR)/mkosi-lab-esp.raw
@@ -18,14 +19,14 @@ ESP_SIZE ?= 384M
 ESP_LABEL ?= LABUKIESP
 ESP_BOOT_FILE ?= ::/EFI/BOOT/BOOTX64.EFI
 
-.PHONY: build run mkosi-build esp prepare-esp box register-box remove-orphan-domain remove-box-volume remove-stale-libvirt check-domain-stopped up down destroy ssh console status clean distclean inventory ping
+.PHONY: build run mkosi-build esp prepare-esp box register-box remove-orphan-domain remove-box-volume remove-stale-libvirt check-domain-stopped up down destroy ssh console status clean distclean inventory ping infra-up infra-down infra-ssh infra-status infra-destroy
 
 build: destroy mkosi-build esp box register-box
 
 run: build up
 
 mkosi-build:
-	sudo mkosi -f build
+	sudo mkosi -f --wipe-build-dir build
 
 esp: check-domain-stopped prepare-esp $(UKI)
 	mkfs.vfat -F 32 -n $(ESP_LABEL) $(ESP_IMAGE)
@@ -59,7 +60,9 @@ box: esp
 		> "$(BOX_CATALOG)"
 
 register-box: box remove-stale-libvirt
+	@echo "Re-registering $(BOX_NAME) from $(BOX_FILE)"
 	vagrant box remove "$(BOX_NAME)" --provider "$(BOX_PROVIDER)" --all --force 2>/dev/null || true
+	@$(MAKE) --no-print-directory remove-box-volume
 	vagrant box add --force "$(BOX_CATALOG)"
 
 remove-stale-libvirt: remove-orphan-domain remove-box-volume
@@ -138,3 +141,22 @@ clean:
 distclean: clean
 	sudo rm -rf mkosi.cache
 	rm -rf .ruff_cache
+	rm -rf "$(TMP_BUILD_DIR)"
+
+# ── Infrastructure VMs (infra/) ───────────────────────────────────────────────
+# Managed separately so they survive `make clean` / `vagrant destroy` in root.
+
+infra-up:
+	cd infra && vagrant up --provider=libvirt
+
+infra-down:
+	cd infra && vagrant halt
+
+infra-ssh:
+	cd infra && vagrant ssh apt-cacher-ng
+
+infra-status:
+	cd infra && vagrant status
+
+infra-destroy:
+	cd infra && vagrant destroy -f
