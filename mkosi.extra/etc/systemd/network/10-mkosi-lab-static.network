@@ -2,7 +2,7 @@
 Name=enp4s0
 
 [Network]
-Address=192.168.200.3/24
+Address=192.168.200.4/24
 DHCP=no
 LinkLocalAddressing=no
 IPv6AcceptRA=no
