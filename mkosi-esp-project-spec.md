@@ -282,6 +282,7 @@ mkosi_esp_install_host_packages: true
 mkosi_esp_sync_clock: true
 mkosi_esp_clock_drift_threshold_seconds: 30
 mkosi_esp_enable_ntp: true
+mkosi_esp_hsm_support_enabled: true
 mkosi_esp_project_git_enabled: true
 mkosi_esp_project_git_initial_commit: true
 mkosi_esp_project_git_commit_message: "Initialize mkosi ESP project"
@@ -332,8 +333,15 @@ mkosi_esp_build_log_name: "{{ mkosi_esp_project_name }}.mkosi-build.log"
 mkosi_esp_manifest_enabled: true
 mkosi_esp_manifest_name: "{{ mkosi_esp_project_name }}.manifest.json"
 mkosi_esp_checksums_name: SHA256SUMS
+mkosi_esp_media_issuance_enabled: false
+mkosi_esp_media_issuance_name: "{{ mkosi_esp_project_name }}.media-issuance.json"
+mkosi_esp_target_usb_device: ""
+mkosi_esp_target_usb_expected_serial: ""
+mkosi_esp_target_usb_expected_model: ""
+mkosi_esp_operator_identity: "{{ ansible_user | default(ansible_user_id) }}"
 mkosi_esp_artifact_signing_enabled: false
-mkosi_esp_artifact_signing_backend: controller
+mkosi_esp_artifact_signing_backend: provcont
+mkosi_esp_artifact_signing_user: "{{ mkosi_esp_project_owner }}"
 mkosi_esp_artifact_signing_command: gpg
 mkosi_esp_artifact_signing_key: ""
 mkosi_esp_artifact_signing_homedir: ""
@@ -342,6 +350,9 @@ mkosi_esp_artifact_signing_controller_path_style: posix
 mkosi_esp_artifact_signing_extra_args: []
 mkosi_esp_artifact_signature_suffix: .asc
 mkosi_esp_artifact_signature_armor: true
+mkosi_esp_artifact_test_signer_homedir: "{{ mkosi_esp_artifact_dir }}/test-signer-gnupg"
+mkosi_esp_artifact_test_signer_name: "mkosi ESP bogus test signer"
+mkosi_esp_artifact_test_signer_email: "mkosi-esp-test-signer@localhost"
 mkosi_esp_artifact_signing_files:
   - "{{ mkosi_esp_checksums_path }}"
   - "{{ mkosi_esp_manifest_path }}"
@@ -355,6 +366,12 @@ from the controller epoch, then enable NTP when `mkosi_esp_enable_ntp` is true.
 This keeps snapshot-based testing from breaking apt freshness checks, TLS, Git
 signing, and provenance timestamps.
 
+When `mkosi_esp_hsm_support_enabled` is true, the role should install and
+prepare the smartcard/HSM tooling needed for operator-side signing on
+`provcont`: GnuPG, gpg-agent, scdaemon, pcscd, pcsc diagnostics, OpenSC,
+pinentry variants, YubiKey tooling, p11-kit, and PKCS#11 OpenSSL engine
+support. PC/SC should be enabled before signing diagnostics run.
+
 When `mkosi_esp_allow_release_fallback` is true, implementation should attempt
 the requested release first and retry once with `mkosi_esp_release_fallback` if
 the build fails for a release-availability reason. The retry should be explicit
@@ -362,16 +379,25 @@ in logs and in the artifact manifest.
 
 When `mkosi_esp_artifact_signing_enabled` is true, the role should create
 detached signatures for the configured provenance files after `SHA256SUMS` and
-the manifest are rendered. The default `controller` backend fetches the files
-to the controller, signs them with `mkosi_esp_artifact_signing_command`, and
-copies signatures back beside the artifacts. This supports HSM and smartcard
-flows such as a Windows GPG/YubiKey stack invoked from WSL. The `remote`
-backend signs directly on the build host when the HSM, smartcard, or GPG agent
-is available there. `mkosi_esp_artifact_signing_controller_work_dir` can point
-at a controller directory visible to an external signer when the signer cannot
-read ordinary WSL temporary paths. When invoking a Windows-native signer from
-WSL, set `mkosi_esp_artifact_signing_controller_path_style: windows` so the
-role passes signer-visible paths produced by `wslpath -w`.
+the manifest are rendered. The default `provcont` backend signs directly on
+the build host so an operator can insert an HSM or smartcard during the media
+issuance ceremony. The `controller` backend remains available for development
+from WSL, where Windows GPG may own the YubiKey. The `test` backend generates
+an explicitly bogus local PGP key for automated tests without a physical HSM.
+`mkosi_esp_artifact_signing_controller_work_dir` can point at a controller
+directory visible to an external signer when the signer cannot read ordinary
+WSL temporary paths. When invoking a Windows-native signer from WSL, set
+`mkosi_esp_artifact_signing_controller_path_style: windows` so the role passes
+signer-visible paths produced by `wslpath -w`.
+
+When `mkosi_esp_media_issuance_enabled` is true, the role should require
+`mkosi_esp_target_usb_device`, confirm that it is a block device, collect
+`lsblk` and `udevadm` metadata, optionally enforce an expected model or serial,
+and render `<project-name>.media-issuance.json`. This manifest binds the
+operator, target USB identity, generated UKI, ESP image, manifest, and checksum
+file before media writing begins. If artifact signing is enabled, the
+media-issuance manifest should be signed along with the other provenance
+artifacts.
 
 Project Git support should initialize the generated project repository, write
 the project `.gitignore`, stage source changes as the role updates files, and
@@ -570,12 +596,25 @@ A successful run should leave these files on `provcont`:
 /srv/mkosi-artifacts/<project-name>/SHA256SUMS
 ```
 
+When media issuance is enabled, the run should also leave:
+
+```text
+/srv/mkosi-artifacts/<project-name>/<project-name>.media-issuance.json
+```
+
 When artifact signing is enabled, the run should also leave detached
 signatures beside the signed provenance files:
 
 ```text
 /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json.asc
 /srv/mkosi-artifacts/<project-name>/SHA256SUMS.asc
+```
+
+When both media issuance and artifact signing are enabled, the media issuance
+record should also be signed:
+
+```text
+/srv/mkosi-artifacts/<project-name>/<project-name>.media-issuance.json.asc
 ```
 
 The ESP image should contain:
@@ -592,8 +631,10 @@ mdir -i /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw ::/EFI/BOOT
 tail -40 /srv/mkosi-artifacts/<project-name>/<project-name>.mkosi-build.log
 cd /srv/mkosi-artifacts/<project-name> && sha256sum -c SHA256SUMS
 python3 -m json.tool /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json
+python3 -m json.tool /srv/mkosi-artifacts/<project-name>/<project-name>.media-issuance.json
 gpg --verify /srv/mkosi-artifacts/<project-name>/SHA256SUMS.asc /srv/mkosi-artifacts/<project-name>/SHA256SUMS
 gpg --verify /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json.asc /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json
+gpg --verify /srv/mkosi-artifacts/<project-name>/<project-name>.media-issuance.json.asc /srv/mkosi-artifacts/<project-name>/<project-name>.media-issuance.json
 ```
 
 Expected `mdir` output should include:
