@@ -1,0 +1,97 @@
+---
+- name: Ensure mkosi project and artifact directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ mkosi_esp_project_owner }}"
+    group: "{{ mkosi_esp_project_group }}"
+    mode: "0755"
+  loop:
+    - "{{ mkosi_esp_project_root }}"
+    - "{{ mkosi_esp_project_dir }}"
+    - "{{ mkosi_esp_artifact_root }}"
+    - "{{ mkosi_esp_artifact_dir }}"
+    - "{{ mkosi_esp_project_dir }}/{{ mkosi_esp_output_directory }}"
+    - "{{ mkosi_esp_project_dir }}/{{ mkosi_esp_cache_directory }}"
+
+- name: Ensure mkosi overlay directories exist
+  ansible.builtin.file:
+    path: "{{ mkosi_esp_project_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ mkosi_esp_project_owner }}"
+    group: "{{ mkosi_esp_project_group }}"
+    mode: "0755"
+  loop: "{{ mkosi_esp_overlay_directories }}"
+
+- name: Render mkosi configuration
+  ansible.builtin.template:
+    src: mkosi.conf.j2
+    dest: "{{ mkosi_esp_project_dir }}/mkosi.conf"
+    owner: "{{ mkosi_esp_project_owner }}"
+    group: "{{ mkosi_esp_project_group }}"
+    mode: "0644"
+  no_log: "{{ (mkosi_esp_effective_root_password | default('') | length) > 0 }}"
+
+- name: Render project gitignore
+  ansible.builtin.template:
+    src: gitignore.j2
+    dest: "{{ mkosi_esp_project_dir }}/.gitignore"
+    owner: "{{ mkosi_esp_project_owner }}"
+    group: "{{ mkosi_esp_project_group }}"
+    mode: "0644"
+  when: mkosi_esp_project_git_enabled | bool
+
+- name: Render project README
+  ansible.builtin.template:
+    src: README.md.j2
+    dest: "{{ mkosi_esp_project_dir }}/README.md"
+    owner: "{{ mkosi_esp_project_owner }}"
+    group: "{{ mkosi_esp_project_group }}"
+    mode: "0644"
+
+- name: Copy optional overlay files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ mkosi_esp_project_dir }}/mkosi.extra/{{ item.dest }}"
+    owner: "{{ mkosi_esp_project_owner }}"
+    group: "{{ mkosi_esp_project_group }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ mkosi_esp_overlay_files }}"
+  when: mkosi_esp_overlay_files | length > 0
+
+- name: Check whether project Git repository exists
+  ansible.builtin.stat:
+    path: "{{ mkosi_esp_project_dir }}/.git"
+  register: mkosi_esp_project_git_dir
+  when: mkosi_esp_project_git_enabled | bool
+
+- name: Initialize project Git repository
+  ansible.builtin.command: git init
+  args:
+    chdir: "{{ mkosi_esp_project_dir }}"
+  become: true
+  become_user: "{{ mkosi_esp_project_owner }}"
+  when:
+    - mkosi_esp_project_git_enabled | bool
+    - not mkosi_esp_project_git_dir.stat.exists
+
+- name: Configure project Git signing key
+  ansible.builtin.command: "git config user.signingkey {{ mkosi_esp_project_git_signing_key | quote }}"
+  args:
+    chdir: "{{ mkosi_esp_project_dir }}"
+  become: true
+  become_user: "{{ mkosi_esp_project_owner }}"
+  changed_when: false
+  when:
+    - mkosi_esp_project_git_enabled | bool
+    - mkosi_esp_project_git_sign_commits | bool
+    - mkosi_esp_project_git_signing_key | length > 0
+
+- name: Commit project source changes
+  ansible.builtin.include_tasks: git_commit.yml
+  vars:
+    mkosi_esp_git_commit_message: "{{ mkosi_esp_project_git_commit_message }}"
+  when:
+    - mkosi_esp_project_git_enabled | bool
+    - mkosi_esp_project_git_initial_commit | bool
+    - mkosi_esp_project_git_commit_on_change | bool

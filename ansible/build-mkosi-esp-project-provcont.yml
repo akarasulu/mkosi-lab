@@ -1,0 +1,6 @@
+---
+- name: Create and build a mkosi ESP project on provcont
+  hosts: provcont
+  become: true
+  roles:
+    - role: mkosi_esp_project

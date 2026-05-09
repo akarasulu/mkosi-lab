@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  author: mkosi-lab
+  description: Create mkosi projects and build bootable ESP images containing UKIs.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+dependencies: []

@@ -19,7 +19,12 @@ ESP_SIZE ?= 384M
 ESP_LABEL ?= LABUKIESP
 ESP_BOOT_FILE ?= ::/EFI/BOOT/BOOTX64.EFI
 
-.PHONY: build run mkosi-build esp prepare-esp box register-box remove-orphan-domain remove-box-volume remove-stale-libvirt check-domain-stopped up down destroy ssh console status clean distclean inventory ping infra-up infra-down infra-ssh infra-status infra-destroy
+ANSIBLE_TMP_ENV := ANSIBLE_LOCAL_TEMP=/tmp/ansible-local ANSIBLE_REMOTE_TEMP=/tmp/ansible-remote
+PROVCONT_ANSIBLE_ENV := ANSIBLE_CONFIG=infra/ansible.cfg ANSIBLE_ROLES_PATH=ansible/roles $(ANSIBLE_TMP_ENV) ANSIBLE_SSH_ARGS='-F /dev/null -o ControlMaster=no'
+PROVCONT_INVENTORY := infra/inventory/hosts.yml
+MKOSI_ESP_PROVCONT_PLAYBOOK := ansible/build-mkosi-esp-project-provcont.yml
+
+.PHONY: build run mkosi-build esp prepare-esp box register-box remove-orphan-domain remove-box-volume remove-stale-libvirt check-domain-stopped up down destroy ssh console status clean distclean inventory ping infra-up infra-down infra-ssh infra-status infra-destroy mkosi-esp-syntax mkosi-esp-provcont-project mkosi-esp-provcont-build
 
 build: destroy mkosi-build esp box register-box
 
@@ -160,3 +165,12 @@ infra-status:
 
 infra-destroy:
 	cd infra && vagrant destroy -f
+
+mkosi-esp-syntax:
+	$(ANSIBLE_TMP_ENV) ansible-playbook --syntax-check "$(MKOSI_ESP_PROVCONT_PLAYBOOK)" -i "$(PROVCONT_INVENTORY)"
+
+mkosi-esp-provcont-project:
+	$(PROVCONT_ANSIBLE_ENV) ansible-playbook -i "$(PROVCONT_INVENTORY)" "$(MKOSI_ESP_PROVCONT_PLAYBOOK)" -e mkosi_esp_project_build=false
+
+mkosi-esp-provcont-build:
+	$(PROVCONT_ANSIBLE_ENV) ansible-playbook -i "$(PROVCONT_INVENTORY)" "$(MKOSI_ESP_PROVCONT_PLAYBOOK)"
