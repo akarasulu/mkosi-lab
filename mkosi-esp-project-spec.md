@@ -326,13 +326,16 @@ mkosi_esp_image_name: "{{ mkosi_esp_project_name }}.esp.raw"
 mkosi_esp_boot_file: ::/EFI/BOOT/BOOTX64.EFI
 mkosi_esp_build_log_enabled: true
 mkosi_esp_build_log_name: "{{ mkosi_esp_project_name }}.mkosi-build.log"
+mkosi_esp_manifest_enabled: true
+mkosi_esp_manifest_name: "{{ mkosi_esp_project_name }}.manifest.json"
+mkosi_esp_checksums_name: SHA256SUMS
 mkosi_esp_vagrant_box_enabled: false
 ```
 
 When `mkosi_esp_allow_release_fallback` is true, implementation should attempt
 the requested release first and retry once with `mkosi_esp_release_fallback` if
 the build fails for a release-availability reason. The retry should be explicit
-in logs and in the artifact manifest when manifests are added later.
+in logs and in the artifact manifest.
 
 Project Git support should initialize the generated project repository, write
 the project `.gitignore`, stage source changes as the role updates files, and
@@ -363,8 +366,11 @@ Derived paths:
 mkosi_esp_project_dir: "{{ mkosi_esp_project_root }}/{{ mkosi_esp_project_name }}"
 mkosi_esp_artifact_dir: "{{ mkosi_esp_artifact_root }}/{{ mkosi_esp_project_name }}"
 mkosi_esp_uki_path: "{{ mkosi_esp_project_dir }}/{{ mkosi_esp_output_directory }}/{{ mkosi_esp_project_name }}.efi"
+mkosi_esp_uki_artifact_path: "{{ mkosi_esp_artifact_dir }}/{{ mkosi_esp_project_name }}.efi"
 mkosi_esp_image_path: "{{ mkosi_esp_artifact_dir }}/{{ mkosi_esp_image_name }}"
 mkosi_esp_build_log_path: "{{ mkosi_esp_artifact_dir }}/{{ mkosi_esp_build_log_name }}"
+mkosi_esp_manifest_path: "{{ mkosi_esp_artifact_dir }}/{{ mkosi_esp_manifest_name }}"
+mkosi_esp_checksums_path: "{{ mkosi_esp_artifact_dir }}/{{ mkosi_esp_checksums_name }}"
 mkosi_esp_size: "{{ mkosi_esp_uki_size + mkosi_esp_extra_size }}"
 ```
 
@@ -521,8 +527,11 @@ A successful run should leave these files on `provcont`:
 /srv/mkosi-projects/<project-name>/mkosi.conf
 /srv/mkosi-projects/<project-name>/.gitignore
 /srv/mkosi-projects/<project-name>/mkosi.output/<project-name>.efi
+/srv/mkosi-artifacts/<project-name>/<project-name>.efi
 /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw
 /srv/mkosi-artifacts/<project-name>/<project-name>.mkosi-build.log
+/srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json
+/srv/mkosi-artifacts/<project-name>/SHA256SUMS
 ```
 
 The ESP image should contain:
@@ -537,6 +546,8 @@ Useful verification commands:
 file /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw
 mdir -i /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw ::/EFI/BOOT
 tail -40 /srv/mkosi-artifacts/<project-name>/<project-name>.mkosi-build.log
+cd /srv/mkosi-artifacts/<project-name> && sha256sum -c SHA256SUMS
+python3 -m json.tool /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json
 ```
 
 Expected `mdir` output should include:
@@ -624,7 +635,5 @@ Existing repo pieces that are generally useful to borrow:
   disk image, initrd-only artifact, or split `/usr` image when a project needs
   more than a standalone UKI.
 - Per-project overlay file trees from Git or local templates.
-- Artifact manifest with build time, mkosi version, package list, and checksum.
-- Checksums for generated ESP images.
 - A small index page or API on `provcont` to list available generated images.
 - Explicit USB flashing task gated by a required device variable.
