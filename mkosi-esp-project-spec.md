@@ -555,10 +555,10 @@ file /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw
 mdir -i /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw ::/EFI/BOOT
 ```
 
-If the role is created before being wired into the nested collection, use a
-temporary local test playbook that calls `mkosi_esp_project` directly. The
-temporary playbook can be kept as a developer validation helper or removed once
-the role is migrated.
+The role now lives in the sibling `nested` collection checkout under
+`../nested/roles/mkosi_esp_project`. The local validation playbook calls the
+role by its short name while `ANSIBLE_ROLES_PATH` points at that collection
+checkout.
 
 ## Relationship to existing `mkosi-lab`
 
@@ -581,9 +581,8 @@ bootstrapper. The new `mkosi_esp_project` role should be simpler and more
 server-oriented: it creates buildable mkosi ESP projects on `provcont` and
 emits bootable ESP artifacts.
 
-For the first implementation, create the role in the current repository without
-wiring it into the nested collection. It can be migrated into that collection
-later, following the pattern used by the previous role migration.
+The implementation lives in the sibling `nested` collection checkout while this
+repository keeps the mkosi-lab-specific validation playbooks and Make targets.
 
 Existing repo pieces that are generally useful to borrow:
 
