@@ -335,6 +335,11 @@ mkosi_esp_manifest_name: "{{ mkosi_esp_project_name }}.manifest.json"
 mkosi_esp_checksums_name: SHA256SUMS
 mkosi_esp_media_issuance_enabled: false
 mkosi_esp_media_issuance_name: "{{ mkosi_esp_project_name }}.media-issuance.json"
+mkosi_esp_media_write_enabled: false
+mkosi_esp_media_write_mode: whole-device-fat
+mkosi_esp_media_write_confirmation: ""
+mkosi_esp_media_write_require_removable: true
+mkosi_esp_media_write_post_name: "{{ mkosi_esp_project_name }}.media-write.json"
 mkosi_esp_target_usb_device: ""
 mkosi_esp_target_usb_expected_serial: ""
 mkosi_esp_target_usb_expected_model: ""
@@ -398,6 +403,17 @@ operator, target USB identity, generated UKI, ESP image, manifest, and checksum
 file before media writing begins. If artifact signing is enabled, the
 media-issuance manifest should be signed along with the other provenance
 artifacts.
+
+When `mkosi_esp_media_write_enabled` is true, the role should perform the
+destructive media write only after the target USB metadata has been collected.
+The write must require `mkosi_esp_media_write_confirmation` to exactly match
+`mkosi_esp_target_usb_device`, refuse mounted targets or mounted child
+partitions, and by default require the target to look removable, hotplugged, or
+USB-backed. The initial supported mode is `whole-device-fat`, which writes the
+generated FAT ESP image directly to the target device, verifies
+`EFI/BOOT/BOOTX64.EFI`, and renders `<project-name>.media-write.json`. If
+artifact signing is enabled, the post-write manifest should be signed as the
+final seal on the operator ceremony.
 
 Project Git support should initialize the generated project repository, write
 the project `.gitignore`, stage source changes as the role updates files, and
@@ -573,8 +589,11 @@ add the newly built box.
 ## Safety expectations
 
 - The role must not write to physical USB block devices by default, especially system disks.
-- Any future physical-device flashing task must require an explicit variable
-  such as `mkosi_esp_flash_device`.
+- Physical-device writing must be disabled by default and require
+  `mkosi_esp_media_write_enabled`, `mkosi_esp_target_usb_device`, and an exact
+  `mkosi_esp_media_write_confirmation` match.
+- Physical-device writing must refuse mounted targets and by default require
+  removable, hotplugged, or USB-backed target metadata.
 - The role must not delete project directories unless explicitly requested.
 - Recreating the ESP artifact is allowed only inside the configured artifact
   path.
@@ -602,6 +621,12 @@ When media issuance is enabled, the run should also leave:
 /srv/mkosi-artifacts/<project-name>/<project-name>.media-issuance.json
 ```
 
+When media writing is enabled, the run should also leave:
+
+```text
+/srv/mkosi-artifacts/<project-name>/<project-name>.media-write.json
+```
+
 When artifact signing is enabled, the run should also leave detached
 signatures beside the signed provenance files:
 
@@ -615,6 +640,13 @@ record should also be signed:
 
 ```text
 /srv/mkosi-artifacts/<project-name>/<project-name>.media-issuance.json.asc
+```
+
+When media writing and artifact signing are enabled, the post-write record
+should also be signed:
+
+```text
+/srv/mkosi-artifacts/<project-name>/<project-name>.media-write.json.asc
 ```
 
 The ESP image should contain:
@@ -632,9 +664,11 @@ tail -40 /srv/mkosi-artifacts/<project-name>/<project-name>.mkosi-build.log
 cd /srv/mkosi-artifacts/<project-name> && sha256sum -c SHA256SUMS
 python3 -m json.tool /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json
 python3 -m json.tool /srv/mkosi-artifacts/<project-name>/<project-name>.media-issuance.json
+python3 -m json.tool /srv/mkosi-artifacts/<project-name>/<project-name>.media-write.json
 gpg --verify /srv/mkosi-artifacts/<project-name>/SHA256SUMS.asc /srv/mkosi-artifacts/<project-name>/SHA256SUMS
 gpg --verify /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json.asc /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json
 gpg --verify /srv/mkosi-artifacts/<project-name>/<project-name>.media-issuance.json.asc /srv/mkosi-artifacts/<project-name>/<project-name>.media-issuance.json
+gpg --verify /srv/mkosi-artifacts/<project-name>/<project-name>.media-write.json.asc /srv/mkosi-artifacts/<project-name>/<project-name>.media-write.json
 ```
 
 Expected `mdir` output should include:
