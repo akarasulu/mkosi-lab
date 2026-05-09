@@ -279,6 +279,9 @@ mkosi_esp_project_group: "{{ mkosi_esp_project_owner }}"
 mkosi_esp_project_create: true
 mkosi_esp_project_build: true
 mkosi_esp_install_host_packages: true
+mkosi_esp_sync_clock: true
+mkosi_esp_clock_drift_threshold_seconds: 30
+mkosi_esp_enable_ntp: true
 mkosi_esp_project_git_enabled: true
 mkosi_esp_project_git_initial_commit: true
 mkosi_esp_project_git_commit_message: "Initialize mkosi ESP project"
@@ -329,13 +332,46 @@ mkosi_esp_build_log_name: "{{ mkosi_esp_project_name }}.mkosi-build.log"
 mkosi_esp_manifest_enabled: true
 mkosi_esp_manifest_name: "{{ mkosi_esp_project_name }}.manifest.json"
 mkosi_esp_checksums_name: SHA256SUMS
+mkosi_esp_artifact_signing_enabled: false
+mkosi_esp_artifact_signing_backend: controller
+mkosi_esp_artifact_signing_command: gpg
+mkosi_esp_artifact_signing_key: ""
+mkosi_esp_artifact_signing_homedir: ""
+mkosi_esp_artifact_signing_controller_work_dir: ""
+mkosi_esp_artifact_signing_controller_path_style: posix
+mkosi_esp_artifact_signing_extra_args: []
+mkosi_esp_artifact_signature_suffix: .asc
+mkosi_esp_artifact_signature_armor: true
+mkosi_esp_artifact_signing_files:
+  - "{{ mkosi_esp_checksums_path }}"
+  - "{{ mkosi_esp_manifest_path }}"
 mkosi_esp_vagrant_box_enabled: false
 ```
+
+When `mkosi_esp_sync_clock` is true, the role should compare the build host
+clock to the controller clock before apt or mkosi work begins. If the drift is
+larger than `mkosi_esp_clock_drift_threshold_seconds`, set the build host clock
+from the controller epoch, then enable NTP when `mkosi_esp_enable_ntp` is true.
+This keeps snapshot-based testing from breaking apt freshness checks, TLS, Git
+signing, and provenance timestamps.
 
 When `mkosi_esp_allow_release_fallback` is true, implementation should attempt
 the requested release first and retry once with `mkosi_esp_release_fallback` if
 the build fails for a release-availability reason. The retry should be explicit
 in logs and in the artifact manifest.
+
+When `mkosi_esp_artifact_signing_enabled` is true, the role should create
+detached signatures for the configured provenance files after `SHA256SUMS` and
+the manifest are rendered. The default `controller` backend fetches the files
+to the controller, signs them with `mkosi_esp_artifact_signing_command`, and
+copies signatures back beside the artifacts. This supports HSM and smartcard
+flows such as a Windows GPG/YubiKey stack invoked from WSL. The `remote`
+backend signs directly on the build host when the HSM, smartcard, or GPG agent
+is available there. `mkosi_esp_artifact_signing_controller_work_dir` can point
+at a controller directory visible to an external signer when the signer cannot
+read ordinary WSL temporary paths. When invoking a Windows-native signer from
+WSL, set `mkosi_esp_artifact_signing_controller_path_style: windows` so the
+role passes signer-visible paths produced by `wslpath -w`.
 
 Project Git support should initialize the generated project repository, write
 the project `.gitignore`, stage source changes as the role updates files, and
@@ -534,6 +570,14 @@ A successful run should leave these files on `provcont`:
 /srv/mkosi-artifacts/<project-name>/SHA256SUMS
 ```
 
+When artifact signing is enabled, the run should also leave detached
+signatures beside the signed provenance files:
+
+```text
+/srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json.asc
+/srv/mkosi-artifacts/<project-name>/SHA256SUMS.asc
+```
+
 The ESP image should contain:
 
 ```text
@@ -548,6 +592,8 @@ mdir -i /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw ::/EFI/BOOT
 tail -40 /srv/mkosi-artifacts/<project-name>/<project-name>.mkosi-build.log
 cd /srv/mkosi-artifacts/<project-name> && sha256sum -c SHA256SUMS
 python3 -m json.tool /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json
+gpg --verify /srv/mkosi-artifacts/<project-name>/SHA256SUMS.asc /srv/mkosi-artifacts/<project-name>/SHA256SUMS
+gpg --verify /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json.asc /srv/mkosi-artifacts/<project-name>/<project-name>.manifest.json
 ```
 
 Expected `mdir` output should include:
