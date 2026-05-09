@@ -10,3 +10,6 @@ variable named by `mkosi_esp_root_password_env`.
 
 The first implementation is local to this repository. It can later be migrated
 into the nested collection after the workflow settles.
+
+When `mkosi_esp_build_log_enabled` is true, the mkosi build output is captured
+under the artifact directory as `<project-name>.mkosi-build.log`.

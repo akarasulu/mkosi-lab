@@ -78,6 +78,8 @@ mkosi_esp_boot_file: ::/EFI/BOOT/BOOTX64.EFI
 mkosi_esp_force_build: true
 mkosi_esp_recreate_esp: true
 mkosi_esp_verify_esp: true
+mkosi_esp_build_log_enabled: true
+mkosi_esp_build_log_name: "{{ mkosi_esp_project_name }}.mkosi-build.log"
 mkosi_esp_vagrant_box_enabled: false
 
 mkosi_esp_project_dir: "{{ mkosi_esp_project_root }}/{{ mkosi_esp_project_name }}"
@@ -85,3 +87,4 @@ mkosi_esp_artifact_dir: "{{ mkosi_esp_artifact_root }}/{{ mkosi_esp_project_name
 mkosi_esp_uki_path: "{{ mkosi_esp_project_dir }}/{{ mkosi_esp_output_directory }}/{{ mkosi_esp_project_name }}.efi"
 mkosi_esp_uki_artifact_path: "{{ mkosi_esp_artifact_dir }}/{{ mkosi_esp_project_name }}.efi"
 mkosi_esp_image_path: "{{ mkosi_esp_artifact_dir }}/{{ mkosi_esp_image_name }}"
+mkosi_esp_build_log_path: "{{ mkosi_esp_artifact_dir }}/{{ mkosi_esp_build_log_name }}"

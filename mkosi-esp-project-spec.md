@@ -73,6 +73,7 @@ Suggested controller-wide artifact location:
 /srv/mkosi-artifacts/<project-name>/
   <project-name>.esp.raw
   <project-name>.efi
+  <project-name>.mkosi-build.log
 ```
 
 The artifact directory may be project-local instead if that is simpler:
@@ -189,6 +190,9 @@ Tasks:
 - Run `mkosi -f build` from the project directory.
 - Locate the expected UKI output.
 - Copy or preserve the UKI in the artifact directory.
+- Capture mkosi build output in the artifact directory when build logging is
+  enabled so long package/image phases can be inspected while preserving
+  provenance.
 
 The expected UKI output defaults to:
 
@@ -320,6 +324,8 @@ mkosi_esp_size_rounding: 1M
 mkosi_esp_label: RESCUE
 mkosi_esp_image_name: "{{ mkosi_esp_project_name }}.esp.raw"
 mkosi_esp_boot_file: ::/EFI/BOOT/BOOTX64.EFI
+mkosi_esp_build_log_enabled: true
+mkosi_esp_build_log_name: "{{ mkosi_esp_project_name }}.mkosi-build.log"
 mkosi_esp_vagrant_box_enabled: false
 ```
 
@@ -358,6 +364,7 @@ mkosi_esp_project_dir: "{{ mkosi_esp_project_root }}/{{ mkosi_esp_project_name }
 mkosi_esp_artifact_dir: "{{ mkosi_esp_artifact_root }}/{{ mkosi_esp_project_name }}"
 mkosi_esp_uki_path: "{{ mkosi_esp_project_dir }}/{{ mkosi_esp_output_directory }}/{{ mkosi_esp_project_name }}.efi"
 mkosi_esp_image_path: "{{ mkosi_esp_artifact_dir }}/{{ mkosi_esp_image_name }}"
+mkosi_esp_build_log_path: "{{ mkosi_esp_artifact_dir }}/{{ mkosi_esp_build_log_name }}"
 mkosi_esp_size: "{{ mkosi_esp_uki_size + mkosi_esp_extra_size }}"
 ```
 
@@ -479,6 +486,8 @@ The role should be idempotent for project creation:
 The build phase is allowed to be intentionally rebuild-oriented. A first
 version can run `mkosi -f build` whenever `mkosi_esp_project_build` is true.
 Later versions can add change detection or a separate `force_build` variable.
+When build logging pipes mkosi output through `tee`, the command should use
+`pipefail` so mkosi failures still propagate to Ansible.
 
 Suggested controls:
 
@@ -513,6 +522,7 @@ A successful run should leave these files on `provcont`:
 /srv/mkosi-projects/<project-name>/.gitignore
 /srv/mkosi-projects/<project-name>/mkosi.output/<project-name>.efi
 /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw
+/srv/mkosi-artifacts/<project-name>/<project-name>.mkosi-build.log
 ```
 
 The ESP image should contain:
@@ -526,6 +536,7 @@ Useful verification commands:
 ```bash
 file /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw
 mdir -i /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw ::/EFI/BOOT
+tail -40 /srv/mkosi-artifacts/<project-name>/<project-name>.mkosi-build.log
 ```
 
 Expected `mdir` output should include:
