@@ -283,6 +283,9 @@ mkosi_esp_sync_clock: true
 mkosi_esp_clock_drift_threshold_seconds: 30
 mkosi_esp_enable_ntp: true
 mkosi_esp_hsm_support_enabled: true
+mkosi_esp_usbip_enabled: false
+mkosi_esp_usbip_remote_host: ""
+mkosi_esp_usbip_allowed_devices: []
 mkosi_esp_project_git_enabled: true
 mkosi_esp_project_git_initial_commit: true
 mkosi_esp_project_git_commit_message: "Initialize mkosi ESP project"
@@ -376,6 +379,15 @@ prepare the smartcard/HSM tooling needed for operator-side signing on
 `provcont`: GnuPG, gpg-agent, scdaemon, pcscd, pcsc diagnostics, OpenSC,
 pinentry variants, YubiKey tooling, p11-kit, and PKCS#11 OpenSSL engine
 support. PC/SC should be enabled before signing diagnostics run.
+
+When `mkosi_esp_usbip_enabled` is true, the role should load the USB/IP virtual
+host controller, list exports from `mkosi_esp_usbip_remote_host`, and attach
+only the bus IDs in `mkosi_esp_usbip_allowed_devices`. This is the preferred
+operator path for Windows `usbipd-win`: Windows shares the ADATA target USB and
+YubiKey HSM, and `provcont` imports them directly. The workflow should avoid
+re-exporting devices through WSL and then passing them through libvirt USB
+hostdev, because that nested chain can expose the USB identity while failing to
+settle USB mass storage into a block device.
 
 When `mkosi_esp_allow_release_fallback` is true, implementation should attempt
 the requested release first and retry once with `mkosi_esp_release_fallback` if
