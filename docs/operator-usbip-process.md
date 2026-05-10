@@ -130,6 +130,14 @@ The helper runs GPG on `provcont`, not on WSL or Windows. It signs
 `SHA256SUMS`, the build manifest, the media issuance record, and the final
 media-write record in place under `/srv/mkosi-artifacts/<project-name>/`.
 
+`provcont` must already know the public OpenPGP certificate for the HSM signing
+key. An OpenPGP card exposes fingerprints and private-key operations, but it
+does not reliably provide the full public certificate by itself. For production,
+store a public-key URL on the card and use
+`mkosi_esp_artifact_signing_public_key_source: card-url`, or provision the key
+from a controlled URL or repository trust-bundle file. Do not export the public
+key ad hoc from Windows GPG and copy it into `provcont` during issuance.
+
 Avoid the nested chain of Windows to WSL to libvirt USB hostdev for issuance.
 That path can expose USB identity while still failing to settle USB mass storage
 as a block device. It is useful only as a debugging comparison, not as the normal

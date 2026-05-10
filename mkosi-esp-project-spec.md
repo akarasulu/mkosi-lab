@@ -356,6 +356,9 @@ mkosi_esp_artifact_signing_user: "{{ mkosi_esp_project_owner }}"
 mkosi_esp_artifact_signing_command: gpg
 mkosi_esp_artifact_signing_key: ""
 mkosi_esp_artifact_signing_homedir: ""
+mkosi_esp_artifact_signing_public_key_source: none
+mkosi_esp_artifact_signing_public_key_url: ""
+mkosi_esp_artifact_signing_public_key_file: ""
 mkosi_esp_artifact_signing_controller_work_dir: ""
 mkosi_esp_artifact_signing_controller_path_style: posix
 mkosi_esp_artifact_signing_extra_args: []
@@ -435,6 +438,15 @@ the build host so an operator can insert an HSM or smartcard during the media
 issuance ceremony. The `controller` backend remains available for development
 from WSL, where Windows GPG may own the YubiKey. The `test` backend generates
 an explicitly bogus local PGP key for automated tests without a physical HSM.
+
+For HSM-backed signing on `provcont`, public-key resolution must also happen on
+`provcont` from a controlled source. The OpenPGP card provides fingerprints and
+private-key operations, but the full public OpenPGP certificate is not a
+portable artifact that can always be extracted directly from the card. Prefer
+`mkosi_esp_artifact_signing_public_key_source: card-url` after storing a public
+key URL on the card. Also support controlled `url` and `file` sources. Do not
+export the public key ad hoc from Windows GPG and copy it into `provcont`
+during issuance.
 `mkosi_esp_artifact_signing_controller_work_dir` can point at a controller
 directory visible to an external signer when the signer cannot read ordinary
 WSL temporary paths. When invoking a Windows-native signer from WSL, set
