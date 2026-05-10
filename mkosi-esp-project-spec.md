@@ -98,13 +98,13 @@ The default should use the split above:
 Suggested role name:
 
 ```text
-mkosi_esp_project
+mkosi-esp-project
 ```
 
 Suggested repository layout:
 
 ```text
-roles/mkosi_esp_project/
+roles/mkosi-esp-project/
   defaults/main.yml
   tasks/main.yml
   handlers/main.yml
@@ -568,7 +568,7 @@ explicitly supplied through `mkosi_esp_root_password`,
   hosts: provcont
   become: true
   roles:
-    - role: mkosi_esp_project
+    - role: mkosi-esp-project
       vars:
         mkosi_esp_project_name: installer-usb
         mkosi_esp_release: trixie
@@ -610,7 +610,7 @@ A wrapper playbook can include the role once per project:
   tasks:
     - name: Build configured ESP project
       ansible.builtin.include_role:
-        name: mkosi_esp_project
+        name: mkosi-esp-project
       vars:
         mkosi_esp_project_name: "{{ item.name }}"
         mkosi_esp_label: "{{ item.label }}"
@@ -747,7 +747,7 @@ mdir -i /srv/mkosi-artifacts/<project-name>/<project-name>.esp.raw ::/EFI/BOOT
 ```
 
 The role now lives in the sibling `nested` collection checkout under
-`../nested/roles/mkosi_esp_project`. The local validation playbook calls the
+`../nested/roles/mkosi-esp-project`. The local validation playbook calls the
 role by its short name while `ANSIBLE_ROLES_PATH` points at that collection
 checkout.
 
@@ -768,7 +768,7 @@ useful for human boot testing, but it should remain outside the core role or
 incorporated as an optional feature disabled by default.
 
 The existing `uv_mkosi_project_baseline` role is a developer-project
-bootstrapper. The new `mkosi_esp_project` role should be simpler and more
+bootstrapper. The new `mkosi-esp-project` role should be simpler and more
 server-oriented: it creates buildable mkosi ESP projects on `provcont` and
 emits bootable ESP artifacts.
 

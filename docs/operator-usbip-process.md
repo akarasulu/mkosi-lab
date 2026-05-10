@@ -66,7 +66,7 @@ addresses.
 The libvirt lab should run `provcont` with q35 and an xHCI controller. The
 `infra/Vagrantfile` configures this for libvirt machines.
 
-The `mkosi_esp_project` role installs the Linux-side USB/IP tooling on
+The `mkosi-esp-project` role installs the Linux-side USB/IP tooling on
 `provcont`, including `usbip` and the kernel package needed for `vhci-hcd`.
 When `mkosi_esp_usbip_enabled` is true, the role loads `vhci-hcd`, checks the
 remote exports, enforces the configured allow-list, attaches the devices, and

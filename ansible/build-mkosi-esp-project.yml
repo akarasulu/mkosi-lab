@@ -4,4 +4,4 @@
   connection: local
   become: true
   roles:
-    - role: mkosi_esp_project
+    - role: mkosi-esp-project
