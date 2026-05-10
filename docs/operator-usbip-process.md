@@ -3,7 +3,8 @@
 Use this process when an operator is issuing a physical installer USB from
 `provcont` and signing provenance with a local HSM such as a YubiKey. The goal is
 to pass the USB device identity into `provcont`, not to expose only a generic
-block device.
+block device. USB/IP is the normal production and test path. Libvirt USB
+passthrough stays in the lab as an explicit diagnostic or emergency fallback.
 
 ## Windows Workstation Setup
 
@@ -14,8 +15,9 @@ winget install --id dorssel.usbipd-win -e
 ```
 
 The installer provides the `usbipd` service and opens the Windows Firewall path
-needed for USB/IP. Keep the firewall narrowed to the operator/lab network where
-possible; `provcont` only needs TCP access to the Windows USB/IP service.
+needed for USB/IP. Keep the firewall narrowed to trusted `provcont` addresses on
+the operator/lab network; no other host should be able to reach the Windows
+USB/IP service.
 
 Plug in the target installer USB and the HSM. In an elevated PowerShell prompt,
 list devices and bind only the expected devices:
@@ -47,6 +49,10 @@ Set the USB/IP variables for the run:
 ```yaml
 mkosi_esp_usbip_enabled: true
 mkosi_esp_usbip_remote_host: "<windows-host-ip-reachable-from-provcont>"
+mkosi_esp_usbip_trusted_hosts:
+  - "<windows-host-ip-reachable-from-provcont>"
+mkosi_esp_usbip_require_device_ids: true
+mkosi_esp_usbip_reject_unknown_exports: true
 mkosi_esp_usbip_allowed_devices:
   - name: "ADATA USB Flash Drive"
     busid: "9-3"
@@ -69,14 +75,18 @@ gpg --card-status
 ```
 
 The expected shape is that the target USB appears as a removable USB disk with
-the physical serial, and the HSM appears to GPG or the vendor tooling.
+the physical serial, and the HSM appears to GPG or the vendor tooling. If the
+Windows exporter advertises extra devices, stop and unbind them before
+continuing; the role should reject unexpected remote exports when
+`mkosi_esp_usbip_reject_unknown_exports` is enabled.
 
 ## Issuance Flow
 
 1. Operator triggers the build on `provcont`.
 2. Operator plugs in the target USB and HSM on the Windows workstation.
 3. Operator binds the exact bus IDs with `usbipd bind`.
-4. Ansible imports only allow-listed devices into `provcont` over USB/IP.
+4. Ansible verifies the Windows host is trusted, rejects unexpected exports, and
+   imports only allow-listed devices into `provcont` over USB/IP.
 5. The role signs build provenance, media issuance, and final post-write records.
 6. The role writes only after the exact target path confirmation matches.
 

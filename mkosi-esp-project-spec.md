@@ -285,7 +285,10 @@ mkosi_esp_enable_ntp: true
 mkosi_esp_hsm_support_enabled: true
 mkosi_esp_usbip_enabled: false
 mkosi_esp_usbip_remote_host: ""
+mkosi_esp_usbip_trusted_hosts: []
 mkosi_esp_usbip_allowed_devices: []
+mkosi_esp_usbip_require_device_ids: true
+mkosi_esp_usbip_reject_unknown_exports: true
 mkosi_esp_project_git_enabled: true
 mkosi_esp_project_git_initial_commit: true
 mkosi_esp_project_git_commit_message: "Initialize mkosi ESP project"
@@ -381,13 +384,26 @@ pinentry variants, YubiKey tooling, p11-kit, and PKCS#11 OpenSSL engine
 support. PC/SC should be enabled before signing diagnostics run.
 
 When `mkosi_esp_usbip_enabled` is true, the role should load the USB/IP virtual
-host controller, list exports from `mkosi_esp_usbip_remote_host`, and attach
-only the bus IDs in `mkosi_esp_usbip_allowed_devices`. This is the preferred
-operator path for Windows `usbipd-win`: Windows shares the ADATA target USB and
-YubiKey HSM, and `provcont` imports them directly. The workflow should avoid
-re-exporting devices through WSL and then passing them through libvirt USB
-hostdev, because that nested chain can expose the USB identity while failing to
-settle USB mass storage into a block device.
+host controller, require `mkosi_esp_usbip_remote_host` to appear in
+`mkosi_esp_usbip_trusted_hosts`, list exports from that host, and attach only
+the bus IDs in `mkosi_esp_usbip_allowed_devices`. USB/IP is the normal
+production and test path for physical operator media and HSMs. Libvirt USB
+passthrough should remain available in lab code as an explicit diagnostic or
+emergency fallback, but it should not be the default issuance path.
+
+By default, USB/IP admission control should require every allowed device to
+declare a bus ID, vendor ID, and product ID, and should reject a remote exporter
+that advertises unapproved bus IDs. This gives `provcont` a concrete control
+point: only known hosts can export, only known devices can be imported, and
+unexpected devices cause the ceremony to stop before build/sign/write work
+continues. The Windows workstation firewall or equivalent network policy should
+also restrict the USB/IP service to trusted `provcont` addresses.
+
+For Windows `usbipd-win`, Windows shares the ADATA target USB and YubiKey HSM,
+and `provcont` imports them directly. The workflow should avoid re-exporting
+devices through WSL and then passing them through libvirt USB hostdev, because
+that nested chain can expose the USB identity while failing to settle USB mass
+storage into a block device.
 
 The operator workstation setup should be explicit in the project process, not
 an ad hoc terminal memory. On Windows, install `usbipd-win` with
