@@ -118,6 +118,18 @@ continuing; the role should reject unexpected remote exports when
 5. The role signs build provenance, media issuance, and final post-write records.
 6. The role writes only after the exact target path confirmation matches.
 
+For interactive HSM signing during development, use a real operator terminal so
+pinentry is visible:
+
+```bash
+cd infra
+scripts/sign-provcont-installer-provenance.sh
+```
+
+The helper runs GPG on `provcont`, not on WSL or Windows. It signs
+`SHA256SUMS`, the build manifest, the media issuance record, and the final
+media-write record in place under `/srv/mkosi-artifacts/<project-name>/`.
+
 Avoid the nested chain of Windows to WSL to libvirt USB hostdev for issuance.
 That path can expose USB identity while still failing to settle USB mass storage
 as a block device. It is useful only as a debugging comparison, not as the normal
