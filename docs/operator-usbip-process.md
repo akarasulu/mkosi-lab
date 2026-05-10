@@ -8,16 +8,17 @@ passthrough stays in the lab as an explicit diagnostic or emergency fallback.
 
 ## Windows Workstation Setup
 
-Install `usbipd-win` on the Windows operator workstation:
+Prepare the Windows operator workstation:
 
 ```powershell
-winget install --id dorssel.usbipd-win -e
+infra\scripts\install-windows-deps.ps1
 ```
 
-The installer provides the `usbipd` service and opens the Windows Firewall path
-needed for USB/IP. Keep the firewall narrowed to trusted `provcont` addresses on
-the operator/lab network; no other host should be able to reach the Windows
-USB/IP service.
+The helper installs `usbipd-win` with `winget` when missing and starts the
+`usbipd` service. The installer provides the `usbipd` service and opens the
+Windows Firewall path needed for USB/IP. Keep the firewall narrowed to trusted
+`provcont` addresses on the operator/lab network; no other host should be able
+to reach the Windows USB/IP service.
 
 Plug in the target installer USB and the HSM. In an elevated PowerShell prompt,
 list devices and bind only the expected devices:
@@ -32,6 +33,33 @@ Binding makes the devices exportable. Do not run `usbipd attach --wsl` for the
 issuance path. `provcont` should import the devices directly from Windows so the
 media issuance record sees the real USB transport, VID:PID, model, serial, and
 removable/hotplug metadata.
+
+## Linux Workstation Setup
+
+Prepare a Linux operator workstation with the infra bootstrap script:
+
+```bash
+infra/scripts/install-linux-deps.sh
+```
+
+The helper installs the Linux USB/IP tooling, tries to load the `usbip-core` and
+`usbip-host` modules, and enables `usbipd` when the distribution ships a systemd
+unit. If no unit is available, start the exporter manually before issuance:
+
+```bash
+sudo usbipd -D
+```
+
+List and bind only approved devices:
+
+```bash
+usbip list -l
+sudo usbip bind -b <target-usb-busid>
+sudo usbip bind -b <hsm-busid>
+```
+
+Use host firewall rules to allow the USB/IP service only from trusted `provcont`
+addresses.
 
 ## Lab Requirements
 
