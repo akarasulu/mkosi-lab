@@ -80,6 +80,8 @@ code .
 
 ## Project notes
 
+- `docs/operator-usbip-process.md` documents the Windows `usbipd-win` to
+  `provcont` operator process for physical USB issuance and HSM signing.
 - `docs/session-log.md` records the setup session and build lessons.
 - `docs/WSL-vagrant-quirks.md` documents the WSL/Vagrant/libvirt UEFI and networking failure chain.
 - `docs/project-history.md` tracks the project baseline over time.

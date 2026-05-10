@@ -389,6 +389,18 @@ re-exporting devices through WSL and then passing them through libvirt USB
 hostdev, because that nested chain can expose the USB identity while failing to
 settle USB mass storage into a block device.
 
+The operator workstation setup should be explicit in the project process, not
+an ad hoc terminal memory. On Windows, install `usbipd-win` with
+`winget install --id dorssel.usbipd-win -e`, ensure the USB/IP service and
+Windows Firewall allow `provcont` to reach the workstation over TCP, then bind
+only the expected target USB and HSM bus IDs from an elevated PowerShell prompt
+with `usbipd bind --busid <busid>`. The issuance path should not use
+`usbipd attach --wsl`; `provcont` should import the devices directly from the
+Windows USB/IP service so the media issuance manifest can bind physical USB
+identity, including VID:PID, serial, transport, removable/hotplug status, and
+operator-visible device names. The maintained process note is
+`docs/operator-usbip-process.md`.
+
 When `mkosi_esp_allow_release_fallback` is true, implementation should attempt
 the requested release first and retry once with `mkosi_esp_release_fallback` if
 the build fails for a release-availability reason. The retry should be explicit
