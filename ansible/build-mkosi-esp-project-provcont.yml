@@ -3,5 +3,5 @@
   hosts: provcont
   become: true
   roles:
-    - role: usbip-operator-devices
+    - role: usbip-hsm-reset
     - role: mkosi-esp-project
