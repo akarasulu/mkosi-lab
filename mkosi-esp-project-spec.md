@@ -270,7 +270,7 @@ variables instead of being hidden assumptions.
 Initial defaults:
 
 ```yaml
-mkosi_esp_project_name: rescue-usb
+mkosi_esp_project_name: installer-usb
 mkosi_esp_project_root: /srv/mkosi-projects
 mkosi_esp_artifact_root: /srv/mkosi-artifacts
 mkosi_esp_project_owner: "{{ ansible_user | default(ansible_user_id) }}"
@@ -331,7 +331,7 @@ mkosi_esp_image_packages:
 
 mkosi_esp_extra_size: 10M
 mkosi_esp_size_rounding: 1M
-mkosi_esp_label: RESCUE
+mkosi_esp_label: INSTALL
 mkosi_esp_image_name: "{{ mkosi_esp_project_name }}.esp.raw"
 mkosi_esp_boot_file: ::/EFI/BOOT/BOOTX64.EFI
 mkosi_esp_build_log_enabled: true
@@ -342,7 +342,7 @@ mkosi_esp_checksums_name: SHA256SUMS
 mkosi_esp_media_issuance_enabled: false
 mkosi_esp_media_issuance_name: "{{ mkosi_esp_project_name }}.media-issuance.json"
 mkosi_esp_media_write_enabled: false
-mkosi_esp_media_write_mode: whole-device-fat
+mkosi_esp_media_write_mode: gpt-esp
 mkosi_esp_media_write_confirmation: ""
 mkosi_esp_media_write_require_removable: true
 mkosi_esp_media_write_post_name: "{{ mkosi_esp_project_name }}.media-write.json"
@@ -455,11 +455,12 @@ destructive media write only after the target USB metadata has been collected.
 The write must require `mkosi_esp_media_write_confirmation` to exactly match
 `mkosi_esp_target_usb_device`, refuse mounted targets or mounted child
 partitions, and by default require the target to look removable, hotplugged, or
-USB-backed. The initial supported mode is `whole-device-fat`, which writes the
-generated FAT ESP image directly to the target device, verifies
-`EFI/BOOT/BOOTX64.EFI`, and renders `<project-name>.media-write.json`. If
-artifact signing is enabled, the post-write manifest should be signed as the
-final seal on the operator ceremony.
+USB-backed. The default supported mode should be `gpt-esp`: create a GPT on the target USB,
+create one EFI System Partition, write the generated FAT ESP image into that
+partition, and verify the removable-media boot path from the partition. Keep
+`whole-device-fat` available only for simple lab diagnostics. If artifact
+signing is enabled, the post-write manifest should be signed as the final seal
+on the operator ceremony.
 
 Project Git support should initialize the generated project repository, write
 the project `.gitignore`, stage source changes as the role updates files, and
@@ -557,9 +558,9 @@ explicitly supplied through `mkosi_esp_root_password`,
   roles:
     - role: mkosi_esp_project
       vars:
-        mkosi_esp_project_name: rescue-usb
+        mkosi_esp_project_name: installer-usb
         mkosi_esp_release: trixie
-        mkosi_esp_label: RESCUE
+        mkosi_esp_label: INSTALL
 ```
 
 ## Example multi-project inventory data
@@ -569,16 +570,16 @@ build several bootable USB variants.
 
 ```yaml
 mkosi_esp_projects:
-  - name: rescue-usb
-    label: RESCUE
+  - name: installer-usb
+    label: INSTALL
     packages:
       - systemd
       - udev
       - linux-image-amd64
       - iproute2
       - openssh-server
-  - name: installer-usb
-    label: INSTALL
+  - name: rescue-usb
+    label: RESCUE
     packages:
       - systemd
       - udev
